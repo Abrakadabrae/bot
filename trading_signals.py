@@ -8,6 +8,7 @@ import talib
 from dotenv import load_dotenv
 from aiogram import types
 
+# Настройка логгирования и загрузка переменных окружения
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -15,25 +16,32 @@ load_dotenv()
 API_KEY = os.getenv('API_KEY')
 API_SECRET = os.getenv('API_SECRET')
 
-async def fetch_candles(symbol, timeframe_key):
-    logger.info(f"Fetching candles for {symbol.upper()} + '/USDT' with timeframe {timeframe_key}")
+async def fetch_candles(symbol, timeframe):
+    # Если timeframe передан как список, используем первый элемент списка
+    if isinstance(timeframe, list):
+        timeframe = timeframe[0] if len(timeframe) > 0 else '1D'
+    
+    logger.info(f"Fetching candles for {symbol.upper()} + '/USDT' with timeframe {timeframe}")
     exchange = ccxt.binance({
         'apiKey': API_KEY,
         'secret': API_SECRET,
     })
 
+    # Словарь для преобразования таймфреймов
     timeframe_map = {
         '1D': '1d',
         '1H': '1h',
         '5M': '5m',        
     }
 
-    api_timeframe = timeframe_map.get(timeframe_key)
+    # Проверяем, есть ли заданный таймфрейм в словаре преобразований
+    api_timeframe = timeframe_map.get(timeframe)
     if not api_timeframe:
-        logger.error(f"Unsupported timeframe: {timeframe_key}")
+        logger.error(f"Unsupported timeframe: {timeframe}")
         return pd.DataFrame()
 
     try:
+        # Выполняем запрос к API для получения данных о свечах
         candles = await exchange.fetch_ohlcv(symbol.upper() + '/USDT', api_timeframe, limit=100)
         df = pd.DataFrame(candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
@@ -101,17 +109,21 @@ def get_target_stop_loss(df_analyzed):
     logger.info(f"Target price: {target_price}, Stop loss: {stop_loss}")
     return target_price, stop_loss
 
-async def main(symbol, timeframe_key):
-    logger.info(f"Starting analysis for {symbol} with timeframe {timeframe_key}")
-    df = await fetch_candles(symbol, timeframe_key)
+async def main(symbol, timeframes):
+    logger.info(f"Starting analysis for {symbol} with timeframes {timeframes}")
+    for timeframe in timeframes:
+        timeframe_arg = ['1D']  # Пример полученного аргумента как список
+        timeframe_str = timeframe_arg[0] if isinstance(timeframe_arg, list) and len(timeframe_arg) > 0 else '1D'
+        df = await fetch_candles(symbol, timeframe)
     if not df.empty:
         df_analyzed = analyze_data(df)
         target_price = calculate_target_price(df_analyzed)
         stop_loss = calculate_stop_loss(df_analyzed)
         signal = generate_trade_signal(df_analyzed, symbol, target_price, stop_loss)
         logger.info(signal)
+        pass
     else:
-        logger.info(f"No data for analysis. Symbol: {symbol}, Timeframe: {timeframe_key}")
+        logger.info(f"No data for analysis. Symbol: {symbol}, Timeframe: {timeframe}")
 
 if __name__ == "__main__":
     symbol = 'BTCUSDT'
