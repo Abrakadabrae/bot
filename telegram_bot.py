@@ -57,7 +57,7 @@ async def fetch_historical_data(symbol, timeframe='1D', limit=100):
     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
     return df
 
-def get_timeframe_keyboard(symbol):
+async def get_timeframe_keyboard(symbol):
     keyboard = InlineKeyboardMarkup(row_width=3)
     timeframes = ['1D', '1H', '5M']
     for timeframe in timeframes:
