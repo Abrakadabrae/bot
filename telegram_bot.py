@@ -46,7 +46,7 @@ best_ind = tools.selBest(population, 1)[0]
 print("Лучшие параметры:", best_ind)
 print("Пригодность:", best_ind.fitness.values)
 
-async def fetch_historical_data(symbol, timeframe='1d', limit=100):
+async def fetch_historical_data(symbol, timeframe='1D', limit=100):
     exchange = ccxt.binance({
         'enableRateLimit': True,
     })
@@ -59,7 +59,7 @@ async def fetch_historical_data(symbol, timeframe='1d', limit=100):
 
 def get_timeframe_keyboard(symbol):
     keyboard = InlineKeyboardMarkup(row_width=3)
-    timeframes = ['15m', '30m', '1h', '4h', '1d']
+    timeframes = ['15m', '30m', '1H', '4H', '1D']
     for timeframe in timeframes:
         callback_data = f"analyse:{symbol}:{timeframe}"
         button = InlineKeyboardButton(text=timeframe, callback_data=callback_data)
@@ -92,7 +92,7 @@ async def prompt_timeframe_selection(message: types.Message):
     symbol = args[0].upper()
     keyboard = get_timeframe_keyboard(symbol)
     await message.reply("Выберите таймфрейм для анализа:", reply_markup=keyboard)
-    timeframes = ['15m', '30m', '1h', '4h', '1d']
+    timeframes = ['15m', '30m', '1H', '4H', '1D']
     for timeframe in timeframes:
         callback_data = f"analyse:{symbol}:{timeframe}"
         keyboard.insert(InlineKeyboardButton(timeframe, callback_data=callback_data))
