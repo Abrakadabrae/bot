@@ -40,7 +40,7 @@ async def fetch_price_cryptocompare(symbol: str):
             logger.error(f"Error fetching price for {symbol} from CryptoCompare: {e}")
             return None
 
-async def fetch_historical_data(symbol: str, timeframe: str = '1d', limit: int = 100):
+async def fetch_historical_data(symbol: str, timeframe: str = '1D', limit: int = 100):
     """
     Асинхронное получение исторических данных о криптовалюте с использованием библиотеки ccxt.
     """
@@ -98,7 +98,7 @@ def detect_candlestick_patterns(df):
 
 # Пример использования
 async def main(symbol: str):
-    df = await fetch_historical_data(symbol, '1d')  # Предполагается, что эта функция возвращает соответствующий DataFrame
+    df = await fetch_historical_data(symbol, '1D')  # Предполагается, что эта функция возвращает соответствующий DataFrame
     if not df.empty:
         df_with_patterns = detect_candlestick_patterns(df)
         # Теперь df_with_patterns содержит колонку 'pattern' с обнаруженными паттернами
