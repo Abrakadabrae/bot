@@ -6,6 +6,7 @@ import asyncio
 import ccxt.async_support as ccxt
 import talib
 from dotenv import load_dotenv
+from aiogram import types  # Предполагается, что aiogram уже импортирован
 
 # Настройка логгирования
 logging.basicConfig(level=logging.INFO)
@@ -16,34 +17,36 @@ load_dotenv()
 API_KEY = os.getenv('API_KEY')
 API_SECRET = os.getenv('API_SECRET')
 
-async def fetch_candles(symbol, timeframes):
-    logger.info(f"Fetching candles for {symbol}")
+async def fetch_candles(symbol, timeframe):
+    logger.info(f"Fetching candles for {symbol.upper()} + '/USDT' with timeframe {timeframe}")
     exchange = ccxt.binance({
         'apiKey': API_KEY,
         'secret': API_SECRET,
     })
-    
-    supported_timeframes = ['1m', '3m', '5m', '15m', '30m', '1H', '2H', '4H', '6H', '8H', '12H', '1D', '3D', '1w', '1M']
-    results = {}
-    
+
+    # Словарь для преобразования таймфреймов
+    timeframe_map = {
+        '24h': '1d',
+        '1h': '1h',
+        '5m': '5m',
+        '1D': '1d'  # Добавим этот таймфрейм, если он используется в вашем коде
+    }
+
+    if timeframe not in timeframe_map:
+        logger.error(f"Unsupported timeframe: {timeframe}")
+        return pd.DataFrame()
+
+    # Получаем правильный таймфрейм для API
+    api_timeframe = timeframe_map[timeframe]
+
     try:
-        for timeframe in timeframes:
-            if timeframe not in supported_timeframes:
-                logger.error(f"Invalid timeframe: {timeframe}")
-                continue  # Skip unsupported timeframes
-
-            logger.info(f"Fetching {timeframe} candles for {symbol}")
-            candles = await exchange.fetch_ohlcv(symbol.upper() + '/USDT', timeframe, limit=1000)
-            df = pd.DataFrame(candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-            
-            # Assuming 'dropna' is a custom or pandas function to remove NA/NaN values
-            results[timeframe] = df.dropna()
-
-            logger.info(f"Successfully fetched {len(df)} candles for {symbol} with timeframe {timeframe}")
-
+        candles = await exchange.fetch_ohlcv(symbol.upper() + '/USDT', api_timeframe, limit=100)
+        df = pd.DataFrame(candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        return dropna(df)
     except Exception as e:
         logger.error(f"Error fetching candles for {symbol}: {e}")
+        return pd.DataFrame()
     finally:
         await exchange.close()
     
@@ -108,7 +111,7 @@ def get_target_stop_loss(df_analyzed):
 
 async def main(symbol, timeframes):
     logger.info(f"Starting analysis for {symbol} with timeframes {timeframes}")
-    results = await fetch_candles(symbol, timeframes)
+    results = await fetch_candles(symbol, timeframe)
     for timeframe, df in results.items():
         if df.empty:
             logger.info(f"No data for analysis for timeframe {timeframe}. Symbol: {symbol}")
