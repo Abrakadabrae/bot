@@ -12,7 +12,6 @@ from ta.volatility import BollingerBands
 from smartmoneyconcepts import smc
 
 logger = logging.getLogger(__name__)
-
 logging.basicConfig(level=logging.INFO)
 
 # Создаем объект DataFrame
