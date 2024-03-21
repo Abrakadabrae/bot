@@ -41,15 +41,23 @@ async def cmd_analyse(message: types.Message):
     selected_timeframes = ['1D']  # Пример временного интервала в виде списка
 
     try:
+        # Добавляем логирование перед запросом данных
+        logger.info(f"Analyzing symbol: {symbol} with timeframe: {selected_timeframes}")
+
         # Теперь fetch_candles возвращает словарь DataFrame'ов
         results = await fetch_candles(symbol, selected_timeframes)
-        timeframe_arg = ['1D']  # Пример полученного аргумента как список
-        timeframe_str = timeframe_arg[0] if isinstance(timeframe_arg, list) and len(timeframe_arg) > 0 else '1D'
-        
+
+        # Добавляем логирование после получения данных
+        if results:
+            logger.info(f"Candles fetched for {symbol}, processing data...")
+        else:
+            logger.info(f"No data returned for {symbol}")
+            await message.reply("Нет данных для анализа.")
+            return
+
         # Проверяем, есть ли данные для выбранного таймфрейма
         if '1D' in results and not results['1D'].empty:
             df_analyzed = analyze_data(results['1D'])
-            # Предполагается, что calculate_target_price и calculate_stop_loss определены
             target_price = calculate_target_price(df_analyzed)
             stop_loss = calculate_stop_loss(df_analyzed)
             signal = generate_trade_signal(df_analyzed, symbol, target_price, stop_loss)
