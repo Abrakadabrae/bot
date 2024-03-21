@@ -45,6 +45,10 @@ async def fetch_candles(symbol, timeframe):
         candles = await exchange.fetch_ohlcv(symbol.upper() + '/USDT', api_timeframe, limit=100)
         df = pd.DataFrame(candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        
+        # Добавляем строку логирования для отслеживания количества успешно полученных строк (свечей)
+        logger.info(f"Data fetched successfully for symbol: {symbol}, rows: {len(df)}")
+
         return df.dropna()
     except Exception as e:
         logger.error(f"Error fetching candles for {symbol}: {e}")
@@ -64,7 +68,9 @@ def calculate_stop_loss(df_analyzed):
     return stop_loss    
 
 def analyze_data(df):
-    logger.info("Analyzing data")
+    # Добавляем логирование в начале анализа данных
+    logger.info(f"Starting data analysis for {len(df)} data points")
+
     if df.empty:
         logger.info("DataFrame is empty.")
         return df
@@ -76,19 +82,26 @@ def analyze_data(df):
     df['bb_high'] = upperband
     df['bb_low'] = lowerband
 
-    logger.info("Data analysis completed")
+    # Добавляем логирование после успешного завершения анализа данных
+    logger.info("Data analysis completed successfully")
     return df
 
 def generate_trade_signal(df_analyzed, symbol, target_price, stop_loss):
-    logger.info(f"Generating trade signal for {symbol} with target_price: {target_price}, stop_loss: {stop_loss}")
+    # Начальное логирование перед генерацией торгового сигнала
+    logger.info(f"Generating trade signal for {symbol}")
+
     if df_analyzed.empty:
+        logger.info(f"No data for analysis for {symbol}")
         return "No data for analysis."
 
     last_row = df_analyzed.iloc[-1]
     direction = "🟩 LONG" if last_row['momentum_macd'] > 0 and last_row['momentum_rsi'] > 50 else "🟥 SHORT"
     entry_price = last_row['close']
 
-    # Forming the message
+    # Логирование деталей сигнала
+    logger.info(f"Direction: {direction}, Entry Price: {entry_price}, Target Price: {target_price}, Stop Loss: {stop_loss}")
+
+    # Формирование сообщения
     message = f"""
 Анализ рынка на: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 Текущая цена для {symbol}/USDT: {entry_price:.2f}
@@ -97,8 +110,8 @@ def generate_trade_signal(df_analyzed, symbol, target_price, stop_loss):
 🎯 Цель: {target_price:.2f}
 🚫 Стоп лосс: {stop_loss:.2f}
     """
-
-    logger.info(f"Trade signal generated for {symbol}")
+    # Завершающее логирование после успешной генерации торгового сигнала
+    logger.info(f"Trade signal generated successfully for {symbol}")
     return message
 
 def get_target_stop_loss(df_analyzed):
@@ -110,20 +123,24 @@ def get_target_stop_loss(df_analyzed):
     return target_price, stop_loss
 
 async def main(symbol, timeframes):
-    logger.info(f"Starting analysis for {symbol} with timeframes {timeframes}")
-    for timeframe in timeframes:
-        timeframe_arg = ['1D']  # Пример полученного аргумента как список
-        timeframe_str = timeframe_arg[0] if isinstance(timeframe_arg, list) and len(timeframe_arg) > 0 else '1D'
-        df = await fetch_candles(symbol, timeframe)
-    if not df.empty:
+    logger.info(f"Starting analysis for {symbol} across timeframes: {timeframes}")
+
+    results = await fetch_candles(symbol, timeframes)
+    for timeframe, df in results.items():
+        if df.empty:
+            logger.info(f"No data for analysis for timeframe: {timeframe}. Symbol: {symbol}")
+            continue
+        
+        logger.info(f"Analyzing data for symbol: {symbol} with timeframe: {timeframe}")
         df_analyzed = analyze_data(df)
         target_price = calculate_target_price(df_analyzed)
         stop_loss = calculate_stop_loss(df_analyzed)
+        
+        logger.info(f"Generating trade signal for symbol: {symbol} with timeframe: {timeframe}")
         signal = generate_trade_signal(df_analyzed, symbol, target_price, stop_loss)
         logger.info(signal)
-        pass
-    else:
-        logger.info(f"No data for analysis. Symbol: {symbol}, Timeframe: {timeframe}")
+
+    logger.info(f"Analysis completed for {symbol} across timeframes: {timeframes}")
 
 if __name__ == "__main__":
     symbol = 'BTCUSDT'
