@@ -38,7 +38,7 @@ async def cmd_analyse(message: types.Message):
         return
 
     symbol = args[0].upper()
-    selected_timeframe = '1d'  # Пример временного интервала
+    selected_timeframe = '1D'  # Пример временного интервала
 
     try:
         # Предполагается, что fetch_candles возвращает DataFrame
