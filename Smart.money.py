@@ -12,16 +12,9 @@ from ta.volatility import BollingerBands
 from smartmoneyconcepts import smc
 
 logger = logging.getLogger(__name__)
+
 logging.basicConfig(level=logging.INFO)
 
-# Создаем объект DataFrame
-df = pd.DataFrame({'A': []})
-
-# Проверяем, пуст ли он или нет
-if df.empty:
-    print("DataFrame пуст.")
-else:
-    print("DataFrame не пуст.")
 
 def add_technical_indicators(ohlc: pd.DataFrame, time_frame: str = "1D") -> pd.DataFrame:
     """
