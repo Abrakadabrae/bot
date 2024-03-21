@@ -38,18 +38,22 @@ async def cmd_analyse(message: types.Message):
         return
 
     symbol = args[0].upper()
-    selected_timeframe = '1D'  # Пример временного интервала
+    selected_timeframes = ['1D']  # Пример временного интервала в виде списка
 
     try:
-        # Предполагается, что fetch_candles возвращает DataFrame
-        df = await fetch_candles(symbol, selected_timeframe)
-        if df.empty:
+        # Теперь fetch_candles возвращает словарь DataFrame'ов
+        results = await fetch_candles(symbol, selected_timeframes)
+        
+        # Проверяем, есть ли данные для выбранного таймфрейма
+        if '1D' in results and not results['1D'].empty:
+            df_analyzed = analyze_data(results['1D'])
+            # Предполагается, что calculate_target_price и calculate_stop_loss определены
+            target_price = calculate_target_price(df_analyzed)
+            stop_loss = calculate_stop_loss(df_analyzed)
+            signal = generate_trade_signal(df_analyzed, symbol, target_price, stop_loss)
+            await message.reply(f"Аналитическая информация для {symbol}: {signal}")
+        else:
             await message.reply("Нет данных для анализа.")
-            return
-
-        df_analyzed = analyze_data(df)
-        signal = generate_trade_signal(df_analyzed, symbol, target_price, stop_loss)
-        await message.reply(f"Аналитическая информация для {symbol}: {signal}")
     except Exception as e:
         logger.error(f"Ошибка при выполнении анализа для {symbol}: {e}")
         await message.reply(f"Произошла ошибка при попытке анализа для {symbol}.")
