@@ -39,6 +39,11 @@ async def fetch_candles(symbol, timeframe):
     finally:
         await exchange.close()
 
+def calculate_target_price(df):
+    # Использование простой средней цены закрытия для расчета целевой цены.
+    target_price = df['close'].mean()
+    return target_price
+
 def analyze_data(df):
     logger.info("Analyzing data")
     if df.empty:
@@ -90,8 +95,10 @@ async def main(symbol, timeframe):
     df = await fetch_candles(symbol, timeframe)
     if not df.empty:
         df_analyzed = analyze_data(df)
-        target_price, stop_loss = get_target_stop_loss(df_analyzed)
-        logger.info(f"Before calling generate_trade_signal — Target price: {target_price}, Stop loss: {stop_loss}")
+        target_price = calculate_target_price(df_analyzed)
+        # Предполагаем, что stop_loss рассчитывается отдельно
+        stop_loss = calculate_stop_loss(df_analyzed)
+        logger.info(f"Target price calculated: {target_price}, Stop loss: {stop_loss}")
         signal = generate_trade_signal(df_analyzed, symbol, target_price, stop_loss)
         logger.info(signal)
     else:
