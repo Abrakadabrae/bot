@@ -141,6 +141,7 @@ async def main(symbol, timeframes):
         logger.info(signal)
 
     logger.info(f"Analysis completed for {symbol} across timeframes: {timeframes}")
+    return df
 
 if __name__ == "__main__":
     symbol = 'BTCUSDT'
