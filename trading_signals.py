@@ -6,51 +6,43 @@ import asyncio
 import ccxt.async_support as ccxt
 import talib
 from dotenv import load_dotenv
-from aiogram import types  # Предполагается, что aiogram уже импортирован
+from aiogram import types
 
-# Настройка логгирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Загрузка переменных окружения
 load_dotenv()
 API_KEY = os.getenv('API_KEY')
 API_SECRET = os.getenv('API_SECRET')
 
-async def fetch_candles(symbol, timeframe):
-    logger.info(f"Fetching candles for {symbol.upper()} + '/USDT' with timeframe {timeframe}")
+async def fetch_candles(symbol, timeframe_key):
+    logger.info(f"Fetching candles for {symbol.upper()} + '/USDT' with timeframe {timeframe_key}")
     exchange = ccxt.binance({
         'apiKey': API_KEY,
         'secret': API_SECRET,
     })
 
-    # Словарь для преобразования таймфреймов
     timeframe_map = {
-        '24h': '1d',
-        '1h': '1h',
-        '5m': '5m',
-        '1D': '1d'  # Добавим этот таймфрейм, если он используется в вашем коде
+        '1D': '1d',
+        '1H': '1h',
+        '5M': '5m',        
     }
 
-    if timeframe not in timeframe_map:
-        logger.error(f"Unsupported timeframe: {timeframe}")
+    api_timeframe = timeframe_map.get(timeframe_key)
+    if not api_timeframe:
+        logger.error(f"Unsupported timeframe: {timeframe_key}")
         return pd.DataFrame()
-
-    # Получаем правильный таймфрейм для API
-    api_timeframe = timeframe_map[timeframe]
 
     try:
         candles = await exchange.fetch_ohlcv(symbol.upper() + '/USDT', api_timeframe, limit=100)
         df = pd.DataFrame(candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-        return dropna(df)
+        return df.dropna()
     except Exception as e:
         logger.error(f"Error fetching candles for {symbol}: {e}")
         return pd.DataFrame()
     finally:
         await exchange.close()
-    
-    return results
 
 def calculate_target_price(df):
     # Использование простой средней цены закрытия для расчета целевой цены.
@@ -90,12 +82,12 @@ def generate_trade_signal(df_analyzed, symbol, target_price, stop_loss):
 
     # Forming the message
     message = f"""
-Analysis for: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-Current price for {symbol}/USDT: {entry_price:.2f}
-Signal: {direction}
-📈 Entry Point: {entry_price:.2f}
-🎯 Target: {target_price:.2f}
-🚫 Stop Loss: {stop_loss:.2f}
+Анализ рынка на: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Текущая цена для {symbol}/USDT: {entry_price:.2f}
+Сигнал: {direction}
+📈 Точка входа: {entry_price:.2f}
+🎯 Цель: {target_price:.2f}
+🚫 Стоп лосс: {stop_loss:.2f}
     """
 
     logger.info(f"Trade signal generated for {symbol}")
@@ -109,22 +101,19 @@ def get_target_stop_loss(df_analyzed):
     logger.info(f"Target price: {target_price}, Stop loss: {stop_loss}")
     return target_price, stop_loss
 
-async def main(symbol, timeframes):
-    logger.info(f"Starting analysis for {symbol} with timeframes {timeframes}")
-    results = await fetch_candles(symbol, timeframe)
-    for timeframe, df in results.items():
-        if df.empty:
-            logger.info(f"No data for analysis for timeframe {timeframe}. Symbol: {symbol}")
-            continue
-
+async def main(symbol, timeframe_key):
+    logger.info(f"Starting analysis for {symbol} with timeframe {timeframe_key}")
+    df = await fetch_candles(symbol, timeframe_key)
+    if not df.empty:
         df_analyzed = analyze_data(df)
         target_price = calculate_target_price(df_analyzed)
         stop_loss = calculate_stop_loss(df_analyzed)
-        logger.info(f"Timeframe: {timeframe}, Target price calculated: {target_price}, Stop loss: {stop_loss}")
         signal = generate_trade_signal(df_analyzed, symbol, target_price, stop_loss)
         logger.info(signal)
+    else:
+        logger.info(f"No data for analysis. Symbol: {symbol}, Timeframe: {timeframe_key}")
 
 if __name__ == "__main__":
     symbol = 'BTCUSDT'
-    timeframes = ['1D']  # Убедитесь, что это список, даже если таймфрейм один
-    asyncio.run(main(symbol, timeframes))
+    timeframe_key = '1D'  # Пример использования одного таймфрейма
+    asyncio.run(main(symbol, timeframe_key))
