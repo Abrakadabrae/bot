@@ -1,6 +1,6 @@
 import logging
 from aiogram import types, Dispatcher
-from aiogram.dispatcher import Dispatcher
+
 from trading_signals import fetch_candles, analyze_data, generate_trade_signal
 
 # Настройка логирования
@@ -10,8 +10,7 @@ logger = logging.getLogger(__name__)
 async def start_command(message: types.Message):
     await message.reply("Привет! Я твой бот.")
 
-def register_handlers(dp: Dispatcher):
-    dp.register_message_handler(start_command, commands=['start', 'help'])
+
 
 async def cmd_start(message: types.Message):
     """
