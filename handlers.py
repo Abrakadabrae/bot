@@ -43,6 +43,8 @@ async def cmd_analyse(message: types.Message):
     try:
         # Теперь fetch_candles возвращает словарь DataFrame'ов
         results = await fetch_candles(symbol, selected_timeframes)
+        timeframe_arg = ['1D']  # Пример полученного аргумента как список
+        timeframe_str = timeframe_arg[0] if isinstance(timeframe_arg, list) and len(timeframe_arg) > 0 else '1D'
         
         # Проверяем, есть ли данные для выбранного таймфрейма
         if '1D' in results and not results['1D'].empty:
