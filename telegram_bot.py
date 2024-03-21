@@ -59,8 +59,11 @@ async def fetch_historical_data(symbol, timeframe='1D', limit=100):
 
 def get_timeframe_keyboard(symbol):
     keyboard = InlineKeyboardMarkup(row_width=3)
-    timeframes = ['15m', '30m', '1H', '4H', '1D']
+    timeframes = ['1D', '1H', '5M']
     for timeframe in timeframes:
+        timeframe_arg = ['1D']  # Пример полученного аргумента как список
+        timeframe_str = timeframe_arg[0] if isinstance(timeframe_arg, list) and len(timeframe_arg) > 0 else '1D'
+        await fetch_candles(symbol, timeframe)
         callback_data = f"analyse:{symbol}:{timeframe}"
         button = InlineKeyboardButton(text=timeframe, callback_data=callback_data)
         keyboard.insert(button)
@@ -71,6 +74,17 @@ def get_analyse_keyboard():
     analyse_button = InlineKeyboardButton(text="Анализ", switch_inline_query_current_chat="/analyse ")
     keyboard.add(analyse_button)
     return keyboard
+
+@dp.message_handler(commands=['get_candles'])
+async def handle_get_candles_command(message: types.Message):
+    args = message.get_args().split()  # Получаем список аргументов
+    timeframe = args[0] if args else '1D'  # Берем первый аргумент как таймфрейм или используем '1D' по умолчанию
+
+    # Теперь передаем таймфрейм как строку
+    try:
+        await fetch_candles(symbol, timeframe)
+    except Exception as e:
+        await message.reply(f"Ошибка: {str(e)}")    
 
 @dp.callback_query_handler(lambda c: c.data and c.data.startswith('analyse:'))
 async def handle_timeframe_selection(callback_query: types.CallbackQuery):
@@ -92,8 +106,9 @@ async def prompt_timeframe_selection(message: types.Message):
     symbol = args[0].upper()
     keyboard = get_timeframe_keyboard(symbol)
     await message.reply("Выберите таймфрейм для анализа:", reply_markup=keyboard)
-    timeframes = ['15m', '30m', '1H', '4H', '1D']
+    timeframes = ['1D', '1H', '5M']
     for timeframe in timeframes:
+        await fetch_candles(symbol, timeframe)
         callback_data = f"analyse:{symbol}:{timeframe}"
         keyboard.insert(InlineKeyboardButton(timeframe, callback_data=callback_data))
 
