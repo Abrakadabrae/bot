@@ -16,33 +16,49 @@ load_dotenv()
 API_KEY = os.getenv('API_KEY')
 API_SECRET = os.getenv('API_SECRET')
 
-async def fetch_candles(symbol, timeframe):
-    logger.info(f"Fetching candles for {symbol} with timeframe {timeframe}")
+async def fetch_candles(symbol, timeframes):
+    logger.info(f"Fetching candles for {symbol}")
     exchange = ccxt.binance({
         'apiKey': API_KEY,
         'secret': API_SECRET,
     })
+    
+    supported_timeframes = ['1m', '3m', '5m', '15m', '30m', '1H', '2H', '4H', '6H', '8H', '12H', '1D', '3D', '1w', '1M']
+    results = {}
+    
     try:
-        supported_timeframes = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M']
-        if timeframe not in supported_timeframes:
-            logger.error(f"Invalid timeframe: {timeframe}")
-            return pd.DataFrame()  # Return empty DataFrame in case of error
+        for timeframe in timeframes:
+            if timeframe not in supported_timeframes:
+                logger.error(f"Invalid timeframe: {timeframe}")
+                continue  # Skip unsupported timeframes
 
-        candles = await exchange.fetch_ohlcv(symbol.upper() + '/USDT', timeframe, limit=1000)
-        df = pd.DataFrame(candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-        logger.info(f"Successfully fetched {len(df)} candles for {symbol} with timeframe {timeframe}")
-        return df
+            logger.info(f"Fetching {timeframe} candles for {symbol}")
+            candles = await exchange.fetch_ohlcv(symbol.upper() + '/USDT', timeframe, limit=1000)
+            df = pd.DataFrame(candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+            
+            # Assuming 'dropna' is a custom or pandas function to remove NA/NaN values
+            results[timeframe] = df.dropna()
+
+            logger.info(f"Successfully fetched {len(df)} candles for {symbol} with timeframe {timeframe}")
+
     except Exception as e:
         logger.error(f"Error fetching candles for {symbol}: {e}")
-        return pd.DataFrame()
     finally:
         await exchange.close()
+    
+    return results
 
 def calculate_target_price(df):
     # Использование простой средней цены закрытия для расчета целевой цены.
     target_price = df['close'].mean()
     return target_price
+
+def calculate_stop_loss(df_analyzed):
+    # Использование простой логики для расчета стоп-лосса.
+    # Например, стоп-лосс на 5% ниже минимальной цены закрытия в анализируемом DataFrame.
+    stop_loss = df_analyzed['close'].min() * 0.95
+    return stop_loss    
 
 def analyze_data(df):
     logger.info("Analyzing data")
@@ -90,21 +106,22 @@ def get_target_stop_loss(df_analyzed):
     logger.info(f"Target price: {target_price}, Stop loss: {stop_loss}")
     return target_price, stop_loss
 
-async def main(symbol, timeframe):
-    logger.info(f"Starting analysis for {symbol} with timeframe {timeframe}")
-    df = await fetch_candles(symbol, timeframe)
-    if not df.empty:
+async def main(symbol, timeframes):
+    logger.info(f"Starting analysis for {symbol} with timeframes {timeframes}")
+    results = await fetch_candles(symbol, timeframes)
+    for timeframe, df in results.items():
+        if df.empty:
+            logger.info(f"No data for analysis for timeframe {timeframe}. Symbol: {symbol}")
+            continue
+
         df_analyzed = analyze_data(df)
         target_price = calculate_target_price(df_analyzed)
-        # Предполагаем, что stop_loss рассчитывается отдельно
         stop_loss = calculate_stop_loss(df_analyzed)
-        logger.info(f"Target price calculated: {target_price}, Stop loss: {stop_loss}")
+        logger.info(f"Timeframe: {timeframe}, Target price calculated: {target_price}, Stop loss: {stop_loss}")
         signal = generate_trade_signal(df_analyzed, symbol, target_price, stop_loss)
         logger.info(signal)
-    else:
-        logger.info(f"No data for analysis. Symbol: {symbol}, Timeframe: {timeframe}")
 
 if __name__ == "__main__":
     symbol = 'BTCUSDT'
-    timeframe = '1h'
-    asyncio.run(main(symbol, timeframe))
+    timeframes = ['1D']  # Убедитесь, что это список, даже если таймфрейм один
+    asyncio.run(main(symbol, timeframes))
