@@ -27,4 +27,4 @@ for var in required_env_vars:
 
 # Прочие конфигурации
 ENABLED_LOGGING = True if os.getenv('ENABLED_LOGGING', 'True').lower() == 'true' else False  # Добавлено преобразование строки в булево значение
-DEFAULT_TIMEFRAME = '1d'
+DEFAULT_TIMEFRAME = '1D'
